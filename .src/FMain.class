@@ -1,0 +1,63 @@
+' Gambas class file
+
+Public Sub ButtonConversion_Click()
+
+    If TextBoxRuta.text = "" Then
+        Message.error("Elige la ruta y el nombre del fichero .bc3 antes de convertir...")
+    Else
+        'ok empezar a convertir
+        convertir()
+    Endif
+
+End
+
+Public Sub ButtonDefinirRutaYFichero_Click()
+
+    Dialog.Title = "Elege la ruta y el nombre que se guardará el fichero .bc3"
+
+    If Dialog.SaveFile() Then
+    Else
+        If File.Ext(Dialog.Path) = "" Then
+            Dialog.Path &= ".bc3"
+        Endif
+        TextBoxRuta.text = Dialog.Path
+    Endif
+
+End
+
+Public Sub convertir()
+
+    Dim codigo As String
+    Dim ltmp As String
+    Dim lineas As String[]
+    Dim tokes As String[]
+    Dim id, unidad, textocorto, precio, textolargo As String
+
+    codigo = SimpleBC3.BC3version()
+
+    codigo &= SimpleBC3.BC3NombrePresupuesto(File.BaseName(TextBoxRuta.text), "0")
+
+    lineas = Split(TextAreaContenido.text, "\n")
+
+    lineas.Delete(0) 'la primera linea continene la cabecera del nombre de las columnas
+
+    For Each ltmp In lineas
+        tokes = Split(ltmp, gb.tab)
+
+        id = tokes[0]
+        unidad = tokes[1]
+        textocorto = tokes[2]
+
+        precio = tokes[3]
+        textolargo = tokes[4]
+
+        codigo &= SimpleBC3.BC3Conceptos(id, unidad, textocorto, precio)
+        codigo &= SimpleBC3.BC3Texto(id, textolargo)
+
+    Next
+
+    file.Save(TextBoxRuta.text, codigo)
+    Message.Info("Información Guardada...")
+    TextAreaSalida.text = codigo
+
+End

@@ -1,0 +1,35 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,104,104)
+  { TextAreaContenido TextArea
+    MoveScaled(1,10,102,52)
+    Wrap = True
+  }
+  { ButtonConversion Button
+    MoveScaled(84,63,19,4)
+    Text = ("Convertir a BC3")
+    Picture = Picture["icon:/22/exec"]
+  }
+  { TextBoxRuta TextBox
+    MoveScaled(24,63,58,4)
+  }
+  { ButtonDefinirRutaYFichero Button
+    MoveScaled(1,63,23,4)
+    Text = ("Elegir ruta y nombre")
+    Picture = Picture["icon:/22/directory"]
+  }
+  { TextLabel1 TextLabel
+    MoveScaled(4,2,93,3)
+    Text = ("Columnas de datos separados por el caracter tabulador:")
+  }
+  { Label1 Label
+    MoveScaled(17,6,72,3)
+    Text = ("codigo\tunidad\t TextoCorto\tPrecio\tTextoLargo")
+    Border = Border.Plain
+  }
+  { TextAreaSalida TextArea
+    MoveScaled(2,69,101,34)
+    Background = &HFFFF3F&
+  }
+}

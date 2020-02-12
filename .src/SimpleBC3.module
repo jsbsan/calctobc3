@@ -1,0 +1,205 @@
+' Gambas module file
+
+Private listaConceptos As String[]
+Private BarraInvertida As String = "\\"
+Private Codigo As String
+Private coeficientesPrecios As Float = 1
+
+'' ********************************************************
+'' ***         Funciones de conversion a BC3            ***
+'' ********************************************************
+
+Public Function ConversionCaracteres(texto As String) As String
+
+    Dim textolinux As String
+
+    texto = Replace$(texto, gb.cr, gb.CrLf)
+    Try texto = Conv$(texto, "UTF-8", "ISO-8859-1") 'conversion a caracteres SO Windows
+
+    If Error Then
+        Message.Error("Informe de error al convertir caracteres a Windows ISO-8859-1," & "\n" & Error.Text & "\n" & " pero sigo intentando la conversión...")
+        'cambio de caracteres
+        TEXTOLINUX = Replace$(texto, gb.cr, gb.CrLf)
+        TEXTOLINUX = Replace(textolinux, "Ñ", "N")
+        TEXTOLINUX = Replace(textolinux, "ñ", "n")
+        TEXTOLINUX = Replace(textolinux, "á", "a")
+        TEXTOLINUX = Replace(textolinux, "é", "e")
+        TEXTOLINUX = Replace(textolinux, "í", "i")
+        TEXTOLINUX = Replace(textolinux, "ó", "o")
+        TEXTOLINUX = Replace(textolinux, "ú", "u")
+        TEXTOLINUX = Replace(textolinux, "Á", "A")
+        TEXTOLINUX = Replace(textolinux, "É", "E")
+        TEXTOLINUX = Replace(textolinux, "Í", "I")
+        TEXTOLINUX = Replace(textolinux, "Ó", "O")
+        TEXTOLINUX = Replace(textolinux, "Ú", "U")
+        TEXTOLINUX = Replace(textolinux, "ü", "u")
+        TEXTOLINUX = Replace(textolinux, "Ü", "U")
+        TEXTOLINUX = Replace(textolinux, "²", "2")
+        TEXTOLINUX = Replace(textolinux, "“", "-")
+        TEXTOLINUX = Replace(textolinux, "”", "-")
+        TEXTOLINUX = Replace(textolinux, "Ø", "diametro")
+
+        Try texto = Conv$(textolinux, "UTF-8", "ISO-8859-1") 'conversion a caracteres SO Windows
+
+        If Error Then
+            Message.ErRor("Informe de error al convertir caracteres a Windows ISO-8859-1," & "\n" & Error.Text & "\n" & " 2º intengo....")
+            Return "" 'devuelvo vacio para que no se guarde ninguna informacion
+        Else
+            Return texto ' no ha habido errores en el 2º intengo.
+        Endif
+    Else
+        'no ha habido errores en la 1º conversion
+        Return texto
+    Endif
+
+End
+
+Public Function BC3version() As String
+
+    Dim inicial As String
+
+    inicial = "~V|GambasSoftware|FIEBDC-3/2012|Lince " & Application.version & "||ANSI||2|" & gb.Cr 'version del programa que genera el BC3
+    inicial &= "~K|" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "3" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "EUR" & BarraInvertida & "|0|3" & BarraInvertida & "2" & BarraInvertida & "" & BarraInvertida & "3" & BarraInvertida & "3" & BarraInvertida & "" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "EUR" & BarraInvertida & "|" & gb.Cr 'coeficientes
+
+    Return inicial
+
+End
+
+Public Function BC3NombrePresupuesto(nombre As String, importe As String) As String
+
+    Return "~C|0##||" & nombre & "|" & importe & "|" & Format(Now, "ddmmyy") & "|0|" & gb.Cr
+
+End
+
+'Conceptos
+Public Function BC3Conceptos(id As String, unidad As String, nombrecorto As String, importe As String, Optional tipo As String) As String
+
+    Dim inicial As String
+
+    If tipo = "" Then
+        tipo = "0"
+    Endif
+
+    inicial = "~C|" & id & "|" & unidad & "|" & nombrecorto & "|" & importe & "|" & Format(Now, "ddmmyy") & "|" & tipo & "|" & gb.Cr
+
+    ''nota:
+    ' 0 Sin clasificar
+    '
+    ' 1 Mano de obra
+    '
+    ' 2 Maquinaria y medios auxiliares
+    '
+    ' 3 Materiales
+    '
+    ' 4 Componentes adicionales de residuo
+    '
+    ' 5 Clasificaci ón de residuo
+
+    Return inicial
+
+End
+
+'Descompuestos
+Public Function BC3Descompuesto(padre As String, hijo As String, mediciontotal As String) As String
+
+    Dim inicial As String
+
+    inicial = "~D|" & padre & "|" & hijo & BarraInvertida & "1" & BarraInvertida & mediciontotal & BarraInvertida & "|" & gb.Cr
+    'el 1º  uno es factor que es 1.0
+    'el 2º uno es el rendimiento que es 1.0
+    Return inicial
+
+End
+
+'Agregar Descompuesto
+
+Public Sub BC3AgregarDescompuesto(padre As String, hijo As String, mediciontotal As String)
+
+    Dim lineas As String[]
+    Dim a As Integer
+
+    'bug: los codigo ~Y deben de ser continuos y no pueden haber otros ~D| entre medias
+
+    lineas = Split(codigo, gb.cr)
+
+    For a = 0 To lineas.count - 1
+        If InStr(lineas[a], "~D|" & padre & "|") <> 0 Then
+            lineas[a] = String.Left$(lineas[a], String.Len(lineas[a]) - 1) & hijo & BarraInvertida & "1" & BarraInvertida & mediciontotal & BarraInvertida & "|"
+            Break
+        Endif
+    Next
+
+    '  inicial = "~Y|" & padre & "|" & hijo & BarraInvertida & "1" & BarraInvertida & "1" & BarraInvertida & "|" & gb.CrLf
+    'el 1º  uno es factor que es 1.0
+    'el 2º uno es el rendimiento que es 1.0
+    codigo = lineas.Join(gb.cr)
+    Return
+
+End
+
+'mediciones
+Public Function BC3Medicion(idruta As String, posicion As String, MedicionTotal As String, Comentario As String, unidades As String, longitud As String, latitud As String, altura As String) As String
+
+    Dim inicial As String
+
+    If unidades = "0" Then unidades = ""
+    If longitud = "0" Then longitud = ""
+    If latitud = "0" Then latitud = ""
+    If altura = "0" Then altura = ""
+
+    inicial = "~M|" & idruta & "|" & posicion & "|" & MedicionTotal & "|" & BarraInvertida & Comentario & BarraInvertida & unidades & BarraInvertida & longitud & BarraInvertida & latitud & BarraInvertida & altura & "|" & gb.Cr
+
+    Return inicial
+
+End
+
+'agregar medicion... a unidades que tenga ya mediciones...
+Public Sub BC3AgregarMedicion(idruta As String, posicion As String, Comentario As String, unidades As String, longitud As String, latitud As String, altura As String)
+
+    Dim lineas As String[]
+    Dim a As Integer
+    '
+    lineas = Split(codigo, gb.cr)
+
+    If unidades = "0" Then unidades = ""
+    If longitud = "0" Then longitud = ""
+    If latitud = "0" Then latitud = ""
+    If altura = "0" Then altura = ""
+
+    ' inicial = "~N|" & idruta & "|" & posicion & "|" & MedicionTotal & "|" & BarraInvertida & Comentario & BarraInvertida & unidades & BarraInvertida & longitud & BarraInvertida & latitud & BarraInvertida & altura & "|"
+    '
+    For a = 0 To lineas.count - 1
+        If InStr(lineas[a], "~M|" & idruta & "|") <> 0 Then
+            lineas[a] = String.Left$(lineas[a], String.Len(lineas[a]) - 1) & BarraInvertida & BarraInvertida & Comentario & BarraInvertida & unidades & BarraInvertida & longitud & BarraInvertida & latitud & BarraInvertida & altura & "|"
+            'RECALCULAR EL VALOR TOTAL
+            Break
+        Endif
+    Next
+    '
+    codigo = lineas.Join(gb.cr)
+    Return
+
+End
+'textos
+
+Public Function BC3Texto(id As String, texto As String) As String
+
+    Dim inicial As String
+
+    inicial = "~T|" & id & "|" & Replace$(texto, "\n", gb.cr) & "|" & gb.Cr
+
+    Return inicial
+
+End
+
+'COMPROBACIONES DE EXISTENCIAS DE CONCEPTOS, SUBCAPITULOS Y CAPITULOS
+Private Function comprobarConceptos(id As String) As Boolean
+
+    If listaConceptos.Exist(id) Then
+        Return True
+    Else
+
+        Return False
+    Endif
+
+End

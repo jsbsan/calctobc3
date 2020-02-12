@@ -1,0 +1,576 @@
+' Gambas module file
+
+' ' Gambas module file
+'
+' 'MODULO PARA CONVERSION BC3. SEGÚN
+' 'http://www.fiebdc.es/fiebdc-32012/
+'
+' Public tmpVO As VistaPresupuestoVO
+'
+' Private BarraInvertida As String = "\\"
+'
+' Private CSP As CapSubPar
+'
+' 'Manejadores de informacion
+' Private datosPresupuesto As PresupuestoVO
+' Private manejadorPresupuesto As New PresupuestoDAO
+'
+' Private manejadorDescompuestolabores As New DescompuestolaboresDAO
+' Private ArrayDatosDescompuestoLabores As DescompuestolaboresVO[]
+'
+' Private manejadorCategoria As New CategoriaDAO
+' Private datoCategoria As CategoriaVO
+'
+' Private datotmpLabor As LaborVO
+' Private misql As String
+'
+' Private manejadorLaboral As New LaborDAO
+' Private manejadorSubcategoria As New SubcategoriaDAO
+' Private datoSubcategoria As SubcategoriaVO
+'
+' Private idpresupuesto As String
+'
+' Private listaConceptos As String[]
+' Private listaSubcapitulos As String[]
+' Private listaCapitulos As String[]
+'
+' Private ListaCapitulosRenombrados As Collection
+' Private ListaSubCapitulosRenombrados As Collection
+'
+' Private Codigo As String
+'
+' Private coeficientesPrecios As Float
+'
+' Public Sub GenerarBC3()
+'
+'     Dim contenido As String
+'
+'     idpresupuesto = tmpVO.idpresupuesto
+'
+'     coeficientesPrecios = Settings["CoeficientePrecios", 1]
+'
+'     ' linea del nombre del presupuesto
+'     datosPresupuesto = manejadorPresupuesto.ExtraerRegistro("idpresupuesto", idpresupuesto)
+'
+'     Dialog.Title = "Conversion a BC3 " & "Presupuesto: " & datosPresupuesto.descripcioncorta
+'
+'     Dialog.Filter = ["*.bc3", "Ficheros bc3"]
+'     If Dialog.SaveFile() Then
+'         Return 'cancelo creación de fichero bc3
+'         'no generar nada
+'     Else
+'
+'         'crear:
+'         'linea de version
+'         contenido = BC3version()
+'
+'         'FIXME: se exporta el valor calculado... QUE ES LO QUE TIENE SENTIDO
+'         contenido &= BC3NombrePresupuesto(datosPresupuesto.valorcalculado)
+'
+'         'por cada Capitulo
+'
+'         'por cada Subcapitulo dentro del Capitulo
+'
+'         'por cada PARTIDA dentro del subcapitulo
+'
+'         ''GENERO las labores segun el orden indicado en el descompuesto.
+'
+'         contenido &= GenerarLabores()
+'
+'         '' Genero Materiales (habria que crear un capitulo especial dedicado a materiales)
+'         ''guardar fichero de datos....
+'         If File.Ext(Dialog.Path) = "" Then
+'             Dialog.path &= ".bc3" 'añado la extension
+'         Endif
+'
+'         contenido = ConversionCaracteres(contenido)
+'         File.Save(Dialog.path, contenido)
+'
+'         'si todo ha ido bien
+'         Message.Info("Conversion Hecha")
+'     Endif
+'
+' End
+'
+' Public Function GenerarLabores() As String
+'
+'     Dim datoDescompuestosLaboral As DescompuestolaboresVO
+'     Dim subcategoriaActual As String
+'     Dim CapituloActual As Integer
+'     Dim SumaParcialCapitulo As Float = 0
+'
+'     Dim unidad As String 'unidad de medida del concepto
+'     Dim precio As String
+'
+'     Dim existeDescompuestoInicial As Boolean = False
+'     Dim ExisteDescompuestoSubcapitulo As Boolean = False
+'     'generar
+'     Csp = New CapSubPar 'genero el sistema de id y control de posicion
+'
+'     CSP.iniciar()
+'     misql = "select * from Descompuestolabores where idpresupuesto=" & idpresupuesto & " order by idorden"
+'
+'     listaConceptos = [] 'empiezo con la lista sin ningun concepto
+'     listaCapitulos = []
+'     listaSubcapitulos = []
+'     codigo = ""
+'
+'     ListaCapitulosRenombrados = New Collection
+'     ListaSubCapitulosRenombrados = New Collection
+'
+'     ArrayDatosDescompuestoLabores = manejadorDescompuestolabores.ConvertirResult(manejadorDescompuestolabores.sql(misql))
+'
+'     'FASE I: CONCEPTOS
+'     'POR CADA concepto, lo defino y pongo su texto largo
+'     For Each datoDescompuestosLaboral In ArrayDatosDescompuestoLabores
+'         'necesito el texto largo del idlabor
+'
+'         datotmpLabor = manejadorLaboral.ExtraerRegistro("idlabor", datoDescompuestosLaboral.idlabor)
+'
+'         'conceptos...
+'         '***********************************************
+'         'forzar que los id sean los del descompuesto
+'         '***********************************************
+'         ''NOTE: 'Codigos usados por el presupuesto y no por sistema de unidades de labores
+'         datotmpLabor.idlabor = datoDescompuestosLaboral.iddescompuesto
+'
+'         ' Comprobar que no existe ese concepto dentro de los ya introducido
+'         If comprobarConceptos("par" & datotmpLabor.idlabor) = False Then
+'             'lo puedo añadir
+'             unidad = String.Mid$(datotmpLabor.textocorto, 1, 3)
+'             precio = Replace$(Format(Replace$(Str$(datoDescompuestosLaboral.precio * coeficientesPrecios), ",", "."), "0.#0"), ",", ".")  'cogo el precio del datos del presupuesto y le aplico coeficiente
+'
+'             codigo &= BC3conceptos("par" & datotmpLabor.idlabor, unidad, datotmpLabor.textocorto, precio)
+'
+'             'si hay comentario en el presupuesto, añadirlo al texto de la unidad....
+'             If datoDescompuestosLaboral.comentario <> "" Then
+'                 codigo &= BC3Texto("par" & datotmpLabor.idlabor, datotmpLabor.descripcion & gb.cr & datoDescompuestosLaboral.comentario)
+'             Else
+'                 codigo &= BC3Texto("par" & datotmpLabor.idlabor, datotmpLabor.descripcion)
+'             Endif
+'
+'             listaConceptos.Add("par" & datotmpLabor.idlabor)
+'         Endif
+'         'Nota: puede que un concepto se use varias veces en diversos capitulos y por eso se puede repetir.
+'
+'     Next
+'
+'     'FASE II: CAPITULOS y  SUBCAPITULOS
+'     'FASE III: A) DESCOMPUESTOS (CAPITULO)
+'     For Each datoDescompuestosLaboral In ArrayDatosDescompuestoLabores
+'
+'         'necesito el texto largo del idlabor
+'
+'         datotmpLabor = manejadorLaboral.ExtraerRegistro("idlabor", datoDescompuestosLaboral.idlabor)
+'
+'         '***********************************************
+'         'forzar que los id sean los del descompuesto
+'         '***********************************************
+'         ''NOTE: 'Codigos usados por el presupuesto y no por sistema de unidades de labores.
+'
+'         datotmpLabor.idlabor = datoDescompuestosLaboral.iddescompuesto
+'
+'         If datotmpLabor.IDSUBCATEGORIA = subcategoriaActual Then
+'             'no escribo nada, estoy en la misma subcategoria
+'             'estoy en el mismo subcaptitulo
+'             'son conceptos que estan en el mismo capitulo y subcapitulo.
+'         Else
+'             ExisteDescompuestoSubcapitulo = False 'nuevo capitulo o subcapitulo
+'
+'             'comprueba categoria
+'             Try datoSubcategoria = manejadorSubcategoria.ExtraerRegistro("idsubcategoria", datotmpLabor.IDSUBCATEGORIA)
+'             If Error Then
+'                 Print "Error en informe al intentar ver una subcategoria"
+'             Else
+'                 'textos de categoria y subcategoria
+'                 If CapituloActual <> datoSubcategoria.IDCAPITULO Then
+'                     'salto a un nuevo capitulo / categoria
+'                     CSP.AgregaCapitulo()
+'
+'                     datoCategoria = manejadorCategoria.ExtraerRegistro("idcategoria", datoSubcategoria.IDCAPITULO)
+'                     'creo Capitulo
+'                     Codigo &= BC3Conceptos(CSP.idcap() & "#", "", datoCategoria.TEXTOCAPITULO, "0")
+'
+'                     CSP.AgregaSubcapitulo()
+'
+'                     Codigo &= Bc3Conceptos(CSP.idSubcap() & "#", "", datoSubcategoria.TEXTOSUBCATEGORIA, "0") 'hay que indicar la suma de la subcategoria
+'
+'                     CapituloActual = datoSubcategoria.IDCAPITULO
+'                     subcategoriaActual = datotmpLabor.IDSUBCATEGORIA
+'
+'                     ListaCapitulosRenombrados.Add(CSP.idcap(), datoSubcategoria.IDCAPITULO)
+'                     ListaSubCapitulosRenombrados.Add(CSP.idSubcap(), datotmpLabor.IDSUBCATEGORIA)
+'                     'descompuesto (padre/hijo del capitulo)
+'                     If existeDescompuestoInicial Then
+'                         BC3AgregarDescompuesto("0##", CSP.idcap(), "1")
+'                     Else
+'                         codigo &= BC3Descompuesto("0##", CSP.idcap(), "1")
+'                         existeDescompuestoInicial = True
+'                     Endif
+'
+'                     codigo &= BC3Descompuesto(CSP.idcap() & "#", CSP.idSubcap(), "1")
+'
+'                     'linea 266 / form informes
+'                 Else If subcategoriaActual <> datotmpLabor.IDSUBCATEGORIA Then
+'                     'salto de subcatgoria
+'                     CSP.AgregaSubcapitulo()
+'
+'                     Codigo &= Bc3Conceptos(CSP.idSubcap() & "#", "", datoSubcategoria.textosubcategoria, "0") 'hay que indicar la suma de la subcategoria
+'
+'                     CapituloActual = datoSubcategoria.IDCAPITULO
+'                     subcategoriaActual = datotmpLabor.IDSUBCATEGORIA
+'
+'                     ListaSubCapitulosRenombrados.Add(CSP.idSubcap(), datotmpLabor.IDSUBCATEGORIA)
+'                     'agrego descompuesto (padre/hijo del capitulo)
+'
+'                     BC3AgregarDescompuesto(CSP.idcap() & "#", CSP.idSubcap(), "1")
+'                 Endif
+'             Endif
+'         Endif
+'
+'         'FASE III: B)DESCOMPUESTOS(SUBCAPITULO y sus conceptos)
+'         CSP.AgregaPartida()
+'
+'         If ExisteDescompuestoSubcapitulo Then
+'             'como existe lo agrego
+'             BC3AgregarDescompuesto(CSP.idSubcap() & "#", "par" & datotmpLabor.idlabor, datoDescompuestosLaboral.medicion)
+'             '
+'         Else
+'             codigo &= BC3Descompuesto(CSP.idSubcap() & "#", "par" & datotmpLabor.idlabor, datoDescompuestosLaboral.medicion)
+'             ExisteDescompuestoSubcapitulo = True
+'         Endif
+'
+'         'FASE IV: MEDICIONES DE CONCEpTOS
+'         'lineas: 303 de FormInforme
+'         generaMedicion(CSP.idSubcap() & BarraInvertida & "par" & datotmpLabor.idlabor, datoDescompuestosLaboral.iddescompuesto, CSP, datoDescompuestosLaboral.medicion)
+'
+'     Next
+'
+'     'FASE V: MATERIALES
+'
+'     ''TODO: MATERIALES Y MAQUINARIAS EXPORTACION  A BC3
+'     CSP.AgregaCapitulo()
+'     'creo Capitulo
+'     Codigo &= BC3Conceptos(CSP.idcap() & "#", "", "OTROS", "0") '' otros-> configurar a Materiales o Maquinaria segun configuracion?¿
+'
+'     BC3AgregarDescompuesto("0##", CSP.idcap(), "1")
+'
+'     'agregar todos los conceptos
+'     generarMateriales(CSP.idcap() & "#")
+'     Return codigo
+'
+' End
+'
+' Private Sub generarMateriales(codigoCapMat As String)
+'
+'     Dim misql As String
+'     Dim miresultado As Result
+'     Dim miconexion As New Conexion
+'     Dim documento As String
+'     Dim manejadorDescompuestoMateriales As New DescompuestomaterialesDAO
+'     Dim manejadorMaterial As New MaterialesDAO
+'     Dim datotmpMaterial As MaterialesVO
+'     Dim ArrayDatosDescompuestoMateriales As DescompuestomaterialesVO[]
+'     Dim datoDescompuestosMateriales As DescompuestomaterialesVO
+'     Dim unidad As String
+'     Dim ExisteDescompuestoSubcapitulo As Boolean = False
+'
+'     misql = "select * from Descompuestomateriales where idpresupuesto=" & idpresupuesto
+'     '
+'     ArrayDatosDescompuestoMateriales = manejadorDescompuestoMateriales.ConvertirResult(manejadorDescompuestoMateriales.sql(misql))
+'     '
+'     For Each datoDescompuestosMateriales In ArrayDatosDescompuestoMateriales
+'         datotmpMaterial = manejadorMaterial.ExtraerRegistro("idmaterial", datoDescompuestosMateriales.idmaterial)
+'         '
+'         unidad = ""
+'         codigo &= BC3conceptos("parm" & datoDescompuestosMateriales.idmaterial, unidad, datotmpMaterial.textocorto, datoDescompuestosMateriales.precio * coeficientesPrecios)
+'         '
+'         If datotmpMaterial.textolargo <> "" Then
+'             codigo &= BC3Texto("parm" & datoDescompuestosMateriales.idmaterial, datotmpMaterial.textocorto & gb.cr & datotmpMaterial.textolargo)
+'         Else
+'             codigo &= BC3Texto("parm" & datoDescompuestosMateriales.idmaterial, datotmpMaterial.textocorto)
+'         Endif
+'
+'         If ExisteDescompuestoSubcapitulo Then
+'             'como existe lo agrego
+'
+'             BC3AgregarDescompuesto(codigoCapMat, "parm" & datoDescompuestosMateriales.idmaterial, datoDescompuestosMateriales.medicion)
+'         Else
+'             codigo &= BC3Descompuesto(codigoCapMat, "parm" & datoDescompuestosMateriales.idmaterial, datoDescompuestosMateriales.medicion)
+'             ExisteDescompuestoSubcapitulo = True
+'         Endif
+'
+'     Next
+'
+'     Return
+'
+' End
+'
+' Private Sub generaMedicion(idruta As String, iddescompuesto As String, cspRuta As CapSubPar, mediciontotal As String)
+'
+'     Dim misql As String
+'     Dim manejadorMedicionDAO As New MedicionDAO
+'     Dim ArrayDatosMedicion As MedicionVO[]
+'     Dim datosmedicion As MedicionVO
+'
+'     misql = "select * from medicion where iddescompuesto='" & iddescompuesto & "'"
+'
+'     ArrayDatosMedicion = manejadorMedicionDAO.ConvertirResult(manejadorMedicionDAO.sql(misql))
+'
+'     'no existes arrayde datos de medicion, solo hay una medicion...
+'
+'     'no tienen sentido ver existeMedicion, lo que hay que hacer
+'     'es mirar si existe la idruta, en medicion y si es asi, se agrega en caso contrario se mete nueva linea de medicion
+'     For Each datosmedicion In ArrayDatosMedicion
+'
+'         If existeMedicion(idruta) Then
+'             BC3AgregarMedicion(idruta, cspRuta.Posicion(), datosmedicion.descripcion, datosmedicion.numeroveces, datosmedicion.largo, datosmedicion.ancho, datosmedicion.alto)
+'         Else
+'             codigo &= BC3Medicion(idruta, cspRuta.Posicion(), mediciontotal, datosmedicion.descripcion, datosmedicion.numeroveces, datosmedicion.largo, datosmedicion.ancho, datosmedicion.alto)
+'
+'         Endif
+'
+'     Next
+'
+' End
+'
+' Private Function existeMedicion(id As String) As Boolean
+'
+'     If InStr(codigo, id) <> 0 Then Return True
+'
+'     Return False
+'
+' End
+'
+' '' ********************************************************
+' '' ***         Funciones de conversion a BC3            ***
+' '' ********************************************************
+'
+' Public Function ConversionCaracteres(texto As String) As String
+'
+'     Dim textolinux As String
+'
+'     texto = Replace$(texto, gb.cr, gb.CrLf)
+'     Try texto = Conv$(texto, "UTF-8", "ISO-8859-1") 'conversion a caracteres SO Windows
+'
+'     If Error Then
+'         Message.Error("Informe de error al convertir caracteres a Windows ISO-8859-1," & "\n" & Error.Text & "\n" & " pero sigo intentando la conversión...")
+'         'cambio de caracteres
+'         TEXTOLINUX = Replace$(texto, gb.cr, gb.CrLf)
+'         TEXTOLINUX = Replace(textolinux, "Ñ", "N")
+'         TEXTOLINUX = Replace(textolinux, "ñ", "n")
+'         TEXTOLINUX = Replace(textolinux, "á", "a")
+'         TEXTOLINUX = Replace(textolinux, "é", "e")
+'         TEXTOLINUX = Replace(textolinux, "í", "i")
+'         TEXTOLINUX = Replace(textolinux, "ó", "o")
+'         TEXTOLINUX = Replace(textolinux, "ú", "u")
+'         TEXTOLINUX = Replace(textolinux, "Á", "A")
+'         TEXTOLINUX = Replace(textolinux, "É", "E")
+'         TEXTOLINUX = Replace(textolinux, "Í", "I")
+'         TEXTOLINUX = Replace(textolinux, "Ó", "O")
+'         TEXTOLINUX = Replace(textolinux, "Ú", "U")
+'         TEXTOLINUX = Replace(textolinux, "ü", "u")
+'         TEXTOLINUX = Replace(textolinux, "Ü", "U")
+'         TEXTOLINUX = Replace(textolinux, "²", "2")
+'         TEXTOLINUX = Replace(textolinux, "“", "-")
+'         TEXTOLINUX = Replace(textolinux, "”", "-")
+'         TEXTOLINUX = Replace(textolinux, "Ø", "diametro")
+'
+'         Try texto = Conv$(textolinux, "UTF-8", "ISO-8859-1") 'conversion a caracteres SO Windows
+'
+'         If Error Then
+'             Message.ErRor("Informe de error al convertir caracteres a Windows ISO-8859-1," & "\n" & Error.Text & "\n" & " 2º intengo....")
+'             Return "" 'devuelvo vacio para que no se guarde ninguna informacion
+'         Else
+'             Return texto ' no ha habido errores en el 2º intengo.
+'         Endif
+'     Else
+'         'no ha habido errores en la 1º conversion
+'         Return texto
+'     Endif
+'
+' End
+'
+' Public Function BC3version() As String
+'
+'     Dim inicial As String
+'
+'     inicial = "~V|GambasSoftware|FIEBDC-3/2012|Lince " & Application.version & "||ANSI||2|" & gb.Cr 'version del programa que genera el BC3
+'     inicial &= "~K|" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "3" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "EUR" & BarraInvertida & "|0|3" & BarraInvertida & "2" & BarraInvertida & "" & BarraInvertida & "3" & BarraInvertida & "3" & BarraInvertida & "" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "2" & BarraInvertida & "EUR" & BarraInvertida & "|" & gb.Cr 'coeficientes
+'
+'     Return inicial
+'
+' End
+'
+' Public Function BC3NombrePresupuesto(importe As String) As String
+'
+'     Dim inicial As String
+'     'solo para el nombre del presupuesto
+'     Dim nombre As String = tmpVO.descripcioncorta
+'
+'     'mirar estas subrutinas:
+'     'TODO: mirar recalculo
+'     ' CalcularValorPresupuesto()
+'     '
+'     'actualizarPrecioPresupuesto()
+'     '
+'     inicial = "~C|0##||" & nombre & "|" & importe & "|" & Format(Now, "ddmmyy") & "|0|" & gb.Cr
+'
+'     Return inicial
+'
+' End
+'
+' 'Conceptos
+' Public Function BC3Conceptos(id As String, unidad As String, nombrecorto As String, importe As String, Optional tipo As String) As String
+'
+'     Dim inicial As String
+'
+'     If tipo = "" Then
+'         tipo = "0"
+'     Endif
+'
+'     inicial = "~C|" & id & "|" & unidad & "|" & nombrecorto & "|" & importe & "|" & Format(Now, "ddmmyy") & "|" & tipo & "|" & gb.Cr
+'
+'     ''nota:
+'     ' 0 Sin clasificar
+'     '
+'     ' 1 Mano de obra
+'     '
+'     ' 2 Maquinaria y medios auxiliares
+'     '
+'     ' 3 Materiales
+'     '
+'     ' 4 Componentes adicionales de residuo
+'     '
+'     ' 5 Clasificaci ón de residuo
+'
+'     Return inicial
+'
+' End
+'
+' 'Descompuestos
+' Public Function BC3Descompuesto(padre As String, hijo As String, mediciontotal As String) As String
+'
+'     Dim inicial As String
+'
+'     inicial = "~D|" & padre & "|" & hijo & BarraInvertida & "1" & BarraInvertida & mediciontotal & BarraInvertida & "|" & gb.Cr
+'     'el 1º  uno es factor que es 1.0
+'     'el 2º uno es el rendimiento que es 1.0
+'     Return inicial
+'
+' End
+'
+' 'Agregar Descompuesto
+'
+' Public Sub BC3AgregarDescompuesto(padre As String, hijo As String, mediciontotal As String)
+'
+'     Dim lineas As String[]
+'     Dim a As Integer
+'
+'     'bug: los codigo ~Y deben de ser continuos y no pueden haber otros ~D| entre medias
+'
+'     lineas = Split(codigo, gb.cr)
+'
+'     For a = 0 To lineas.count - 1
+'         If InStr(lineas[a], "~D|" & padre & "|") <> 0 Then
+'             lineas[a] = String.Left$(lineas[a], String.Len(lineas[a]) - 1) & hijo & BarraInvertida & "1" & BarraInvertida & mediciontotal & BarraInvertida & "|"
+'             Break
+'         Endif
+'     Next
+'
+'     '  inicial = "~Y|" & padre & "|" & hijo & BarraInvertida & "1" & BarraInvertida & "1" & BarraInvertida & "|" & gb.CrLf
+'     'el 1º  uno es factor que es 1.0
+'     'el 2º uno es el rendimiento que es 1.0
+'     codigo = lineas.Join(gb.cr)
+'     Return
+'
+' End
+'
+' 'mediciones
+' Public Function BC3Medicion(idruta As String, posicion As String, MedicionTotal As String, Comentario As String, unidades As String, longitud As String, latitud As String, altura As String) As String
+'
+'     Dim inicial As String
+'
+'     If unidades = "0" Then unidades = ""
+'     If longitud = "0" Then longitud = ""
+'     If latitud = "0" Then latitud = ""
+'     If altura = "0" Then altura = ""
+'
+'     inicial = "~M|" & idruta & "|" & posicion & "|" & MedicionTotal & "|" & BarraInvertida & Comentario & BarraInvertida & unidades & BarraInvertida & longitud & BarraInvertida & latitud & BarraInvertida & altura & "|" & gb.Cr
+'
+'     Return inicial
+'
+' End
+'
+' 'agregar medicion... a unidades que tenga ya mediciones...
+' Public Sub BC3AgregarMedicion(idruta As String, posicion As String, Comentario As String, unidades As String, longitud As String, latitud As String, altura As String)
+'
+'     Dim lineas As String[]
+'     Dim a As Integer
+'     '
+'     lineas = Split(codigo, gb.cr)
+'
+'     If unidades = "0" Then unidades = ""
+'     If longitud = "0" Then longitud = ""
+'     If latitud = "0" Then latitud = ""
+'     If altura = "0" Then altura = ""
+'
+'     ' inicial = "~N|" & idruta & "|" & posicion & "|" & MedicionTotal & "|" & BarraInvertida & Comentario & BarraInvertida & unidades & BarraInvertida & longitud & BarraInvertida & latitud & BarraInvertida & altura & "|"
+'     '
+'     For a = 0 To lineas.count - 1
+'         If InStr(lineas[a], "~M|" & idruta & "|") <> 0 Then
+'             lineas[a] = String.Left$(lineas[a], String.Len(lineas[a]) - 1) & BarraInvertida & BarraInvertida & Comentario & BarraInvertida & unidades & BarraInvertida & longitud & BarraInvertida & latitud & BarraInvertida & altura & "|"
+'             'RECALCULAR EL VALOR TOTAL
+'             Break
+'         Endif
+'     Next
+'     '
+'     codigo = lineas.Join(gb.cr)
+'     Return
+'
+' End
+' 'textos
+'
+' Public Function BC3Texto(id As String, texto As String) As String
+'
+'     Dim inicial As String
+'
+'     inicial = "~T|" & id & "|" & Replace$(texto, "\n", gb.cr) & "|" & gb.Cr
+'
+'     Return inicial
+'
+' End
+'
+' 'COMPROBACIONES DE EXISTENCIAS DE CONCEPTOS, SUBCAPITULOS Y CAPITULOS
+' Private Function comprobarConceptos(id As String) As Boolean
+'
+'     If listaConceptos.Exist(id) Then
+'         Return True
+'     Else
+'
+'         Return False
+'     Endif
+'
+' End
+'
+' Private Function comprobarCapitulos(id As String) As Boolean
+'
+'     If listaCapitulos.Exist(id) Then
+'         Return True
+'     Else
+'
+'         Return False
+'     Endif
+'
+' End
+'
+' Private Function comprobarSUBCAPITULOS(id As String) As Boolean
+'
+'     If listaSubcapitulos.Exist(id) Then
+'         Return True
+'     Else
+'
+'         Return False
+'     Endif
+'
+' End
