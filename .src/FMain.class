@@ -44,7 +44,11 @@ Public Sub convertir()
 
     For Each ltmp In lineas
         tokes = Split(ltmp, gb.tab)
+        If Len(tokes.Join("")) < 1 Then
+            Continue
+            'LINEA VACIA
 
+        Endif
         id = tokes[0]
         unidad = tokes[1]
         textocorto = tokes[2]
@@ -59,9 +63,15 @@ Public Sub convertir()
 
     salida = SimpleBC3.ConversionCaracteres(codigo)
     If salida <> "" Then
-        file.Save(TextBoxRuta.text, salida)
-        Message.Info("Información Guardada...")
         TextAreaSalida.text = codigo
+
     Endif
+
+End
+
+Public Sub ButtonGuardar_Click()
+
+    file.Save(TextBoxRuta.text, TextAreaSalida.text)
+    Message.Info("Información Guardada...")
 
 End

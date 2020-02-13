@@ -6,16 +6,11 @@
     MoveScaled(1,10,102,52)
     Wrap = True
   }
-  { ButtonConversion Button
-    MoveScaled(84,63,19,4)
-    Text = ("Convertir a BC3")
-    Picture = Picture["icon:/22/exec"]
-  }
   { TextBoxRuta TextBox
-    MoveScaled(24,63,58,4)
+    MoveScaled(25,100,58,4)
   }
   { ButtonDefinirRutaYFichero Button
-    MoveScaled(1,63,23,4)
+    MoveScaled(1,100,23,4)
     Text = ("Elegir ruta y nombre")
     Picture = Picture["icon:/22/directory"]
   }
@@ -29,7 +24,20 @@
     Border = Border.Plain
   }
   { TextAreaSalida TextArea
-    MoveScaled(2,69,101,34)
+    MoveScaled(2,69,101,31)
     Background = &HFFFF3F&
+  }
+  { ButtonGuardar Button
+    MoveScaled(86,100,16,4)
+    Text = ("Guardar")
+    Picture = Picture["icon:/22/save"]
+  }
+  { HBox1 HBox
+    MoveScaled(15,63,80,5)
+    { ButtonConversion Button
+      MoveScaled(0,0,49,4)
+      Text = ("Convertir a BC3")
+      Picture = Picture["icon:/22/exec"]
+    }
   }
 }
