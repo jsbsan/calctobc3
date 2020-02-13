@@ -32,6 +32,7 @@ Public Sub convertir()
     Dim lineas As String[]
     Dim tokes As String[]
     Dim id, unidad, textocorto, precio, textolargo As String
+    Dim salida As String
 
     codigo = SimpleBC3.BC3version()
 
@@ -56,8 +57,11 @@ Public Sub convertir()
 
     Next
 
-    file.Save(TextBoxRuta.text, codigo)
-    Message.Info("Información Guardada...")
-    TextAreaSalida.text = codigo
+    salida = SimpleBC3.ConversionCaracteres(codigo)
+    If salida <> "" Then
+        file.Save(TextBoxRuta.text, salida)
+        Message.Info("Información Guardada...")
+        TextAreaSalida.text = codigo
+    Endif
 
 End
