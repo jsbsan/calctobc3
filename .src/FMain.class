@@ -2,12 +2,8 @@
 
 Public Sub ButtonConversion_Click()
 
-    If TextBoxRuta.text = "" Then
-        Message.error("Elige la ruta y el nombre del fichero .bc3 antes de convertir...")
-    Else
-        'ok empezar a convertir
-        convertir()
-    Endif
+    'ok empezar a convertir
+    convertir()
 
 End
 
@@ -53,11 +49,14 @@ Public Sub convertir()
         unidad = tokes[1]
         textocorto = tokes[2]
 
-        precio = tokes[3]
+        precio = Replace(tokes[3], ".", ",") 'eemplazado de punto decimal a coma decimal
         textolargo = tokes[4]
 
         codigo &= SimpleBC3.BC3Conceptos(id, unidad, textocorto, precio)
-        codigo &= SimpleBC3.BC3Texto(id, textolargo)
+        If Len(textolargo) <> 0 Then
+            'si no hay texto, no lo escribe
+            codigo &= SimpleBC3.BC3Texto(id, textolargo)
+        Endif
 
     Next
 
@@ -71,7 +70,15 @@ End
 
 Public Sub ButtonGuardar_Click()
 
-    file.Save(TextBoxRuta.text, TextAreaSalida.text)
-    Message.Info("Información Guardada...")
+    If TextBoxRuta.text = "" Then
+        Message.error("Elige la ruta y el nombre del fichero .bc3 para guardar los datos...")
+    Else
+        file.Save(TextBoxRuta.text, TextAreaSalida.text)
+        Message.Info("Información Guardada...")
+    Endif
+
+End
+
+Public Sub Form_Open()
 
 End

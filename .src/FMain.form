@@ -1,43 +1,56 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,104,104)
+  MoveScaled(0,0,122,87)
+  Arrangement = Arrange.Vertical
+  AutoResize = True
+  { Panel1 Panel
+    MoveScaled(0,0,111,6)
+    { Label1 Label
+      MoveScaled(2,3,72,3)
+      Text = ("codigo\tunidad\t TextoCorto\tPrecio\tTextoLargo")
+      Border = Border.Plain
+    }
+    { TextLabel1 TextLabel
+      MoveScaled(2,0,93,3)
+      Text = ("Columnas de datos separados por el caracter tabulador:")
+    }
+  }
   { TextAreaContenido TextArea
-    MoveScaled(1,10,102,52)
+    MoveScaled(2,8,47,12)
+    Expand = True
     Wrap = True
   }
-  { TextBoxRuta TextBox
-    MoveScaled(25,100,58,4)
-  }
-  { ButtonDefinirRutaYFichero Button
-    MoveScaled(1,100,23,4)
-    Text = ("Elegir ruta y nombre")
-    Picture = Picture["icon:/22/directory"]
-  }
-  { TextLabel1 TextLabel
-    MoveScaled(4,2,93,3)
-    Text = ("Columnas de datos separados por el caracter tabulador:")
-  }
-  { Label1 Label
-    MoveScaled(17,6,72,3)
-    Text = ("codigo\tunidad\t TextoCorto\tPrecio\tTextoLargo")
-    Border = Border.Plain
-  }
-  { TextAreaSalida TextArea
-    MoveScaled(2,69,101,31)
-    Background = &HFFFF3F&
-  }
-  { ButtonGuardar Button
-    MoveScaled(86,100,16,4)
-    Text = ("Guardar")
-    Picture = Picture["icon:/22/save"]
-  }
   { HBox1 HBox
-    MoveScaled(15,63,80,5)
+    MoveScaled(4,28,80,4)
     { ButtonConversion Button
       MoveScaled(0,0,49,4)
       Text = ("Convertir a BC3")
       Picture = Picture["icon:/22/exec"]
+    }
+  }
+  { TextAreaSalida TextArea
+    MoveScaled(1,54,86,18)
+    Background = &HFFFF3F&
+    Expand = True
+  }
+  { HBox2 HBox
+    MoveScaled(4,80,102,4)
+    { ButtonDefinirRutaYFichero Button
+      MoveScaled(0,0,23,4)
+      Text = ("Elegir ruta y nombre")
+      Picture = Picture["icon:/22/directory"]
+    }
+    { TextBoxRuta TextBox
+      MoveScaled(24,0,58,4)
+    }
+    { Spring1 Spring
+      MoveScaled(83,1,3,2)
+    }
+    { ButtonGuardar Button
+      MoveScaled(85,0,16,4)
+      Text = ("Guardar")
+      Picture = Picture["icon:/22/save"]
     }
   }
 }
